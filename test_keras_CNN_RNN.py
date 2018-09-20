@@ -10,8 +10,8 @@ from keras.layers import LSTM, Dropout, BatchNormalization
 from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import Bidirectional, TimeDistributed
 from keras.layers import Flatten, Reshape, Dense, Input
-from keras.optimizers import Adagrad
-img_width, img_height = 150, 50
+from keras.optimizers import *
+img_width, img_height = 100, 32
 
 train_data_dir = "/home/duc/Downloads/captcha/captcha1/train"
 test_data_dir = "/home/duc/Downloads/captcha/captcha1/test"
@@ -32,7 +32,8 @@ def data(data_dir):
 	data = []
 	for i in tqdm(os.listdir(data_dir)):
 		path = os.path.join(data_dir, i)
-		img = cv2.imread(path, cv2.IMREAD_COLOR)
+		temp = cv2.imread(path, cv2.IMREAD_COLOR)
+		img = cv2.resize(temp, (100,32))
 		label = get_label(i)
 		data.append([np.array(img),label])
 	shuffle(data)
@@ -44,7 +45,6 @@ test_image = data(test_data_dir)
 train_img_data = np.array([i[0] for i in train_image])
 train_img_label = np.array([i[1] for i in train_image])
 #train_img_label.shape = (-1,372)
-
 
 test_img_data = np.array([i[0] for i in test_image])
 test_img_label = np.array([i[1] for i in test_image])
@@ -66,29 +66,31 @@ cnn.add(MaxPooling2D(pool_size=(2,2), strides=2))
 cnn.add(Conv2D(256, (3, 3), activation=cnn_act, padding='same'))
 cnn.add(Conv2D(256, (3, 3), activation=cnn_act, padding='same'))
 cnn.add(MaxPooling2D(pool_size=(1,2), strides=2))
-cnn.add(BatchNormalization(axis=1))
 cnn.add(Dropout(0.25))
-
 cnn.add(Conv2D(512, (3, 3), activation=cnn_act, padding='same'))
 cnn.add(BatchNormalization(axis=1))
 cnn.add(Conv2D(512, (3, 3), activation=cnn_act, padding='same'))
+cnn.add(BatchNormalization(axis=1))
 cnn.add(MaxPooling2D(pool_size=(1,2), strides=2))
-#cnn.add(Conv2D(512, (3, 3), activation=cnn_act))
+cnn.add(Conv2D(512, (3, 3), activation=cnn_act, padding='same'))
 #cnn.add(Conv2D(512,(1,2), activation=cnn_act))
 cnn.add(Dropout(0.25))
-print(cnn.output_shape)
+cnn.summary()
 
 model = Sequential()
 model.add(cnn)
-model.add(Reshape((6,2304)))
+model.add(Reshape((6,1024)))
 model.add(Bidirectional(LSTM(256, return_sequences=True)))
 model.add(Dropout(0.25))
 model.add(Bidirectional(LSTM(256, return_sequences=True)))
 model.add(TimeDistributed(Dense(63, activation='softmax')))
+model.summary()
 #model.add(Flatten())
 #model.add(Dense(372, activation='softmax'))
 #ada_op = Adagrad(lr=0.015)
-model.compile(loss='categorical_crossentropy',
+
+loss='categorical_crossentropy'
+model.compile(loss=loss,
 				optimizer='adadelta',
 				metrics=['accuracy'])
 
