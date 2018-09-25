@@ -94,7 +94,7 @@ model.compile(loss=loss,
 				optimizer='adadelta',
 				metrics=['accuracy'])
 
-model.fit(train_img_data, train_img_label, batch_size=64, 
+model.fit(train_img_data, train_img_label, batch_size=32, 
 	epochs=epochs, validation_data=(test_img_data, test_img_label))
 
 model_json = model.to_json()
