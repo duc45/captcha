@@ -20,12 +20,12 @@ from keras.layers import Bidirectional, TimeDistributed, Lambda
 from keras.layers import Flatten, Reshape, Dense, Input, Activation
 from keras.optimizers import *
 
+home_dir = os.getcwd()
+train_data_dir = home_dir + "/captcha1/train"
+test_data_dir = home_dir + "/captcha1/test"
+val_data_dir = home_dir + "/captcha1/validation"
 
-train_data_dir = "/home/duc/Downloads/captcha/captcha1/train"
-test_data_dir = "/home/duc/Downloads/captcha/captcha1/test"
-val_data_dir = "/home/duc/Downloads/captcha/captcha1/validation"
-
-out_put_dirs = "test_captcha_model"
+out_put_dirs = home_dir + "/test_captcha_model"
 epochs = 10
 regex = r'^[a-z A-Z]+$'
 list_chars = u'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz '
@@ -292,7 +292,7 @@ def train(run_name, start_epoch, stop_epoch):
 
 	rnn_size = 512
 	kernel_init = 'he_normal'
-	batch_sizes = 32
+	batch_sizes = 64
 	nb_train = os.listdir(train_data_dir)
 	nb_val = os.listdir(val_data_dir)
 
@@ -323,19 +323,19 @@ def train(run_name, start_epoch, stop_epoch):
                 kernel_initializer=kernel_init, name='conv2')(cnn)
 	cnn = MaxPooling2D(pool_size=(2,2), strides=2)(cnn)
 	
-	cnn = Conv2D(256, cnn_kernel, activation=cnn_act, padding='same',
-                kernel_initializer=kernel_init, name='conv3')(cnn)
-	cnn = Conv2D(256, cnn_kernel, activation=cnn_act, padding='same',
-                kernel_initializer=kernel_init, name='conv4')(cnn)
-	cnn = MaxPooling2D(pool_size=(1,2), strides=2)(cnn)
+	#cnn = Conv2D(256, cnn_kernel, activation=cnn_act, padding='same',
+    #            kernel_initializer=kernel_init, name='conv3')(cnn)
+	#cnn = Conv2D(256, cnn_kernel, activation=cnn_act, padding='same',
+    #            kernel_initializer=kernel_init, name='conv4')(cnn)
+	#cnn = MaxPooling2D(pool_size=(1,2), strides=2)(cnn)
 	#cnn = Dropout(0.25)(cnn)
-	cnn = Conv2D(512, cnn_kernel, activation=cnn_act, padding='same',
-                kernel_initializer=kernel_init, name='conv5')(cnn)
+	#cnn = Conv2D(512, cnn_kernel, activation=cnn_act, padding='same',
+    #            kernel_initializer=kernel_init, name='conv5')(cnn)
 	cnn = BatchNormalization(axis=1)(cnn)
-	cnn = Conv2D(512, cnn_kernel, activation=cnn_act, padding='same',
-                kernel_initializer=kernel_init, name='conv6')(cnn)
-	cnn = BatchNormalization(axis=1)(cnn)
-	cnn = MaxPooling2D(pool_size=(1,2), strides=2)(cnn)
+	#cnn = Conv2D(512, cnn_kernel, activation=cnn_act, padding='same',
+    #            kernel_initializer=kernel_init, name='conv6')(cnn)
+	#cnn = BatchNormalization(axis=1)(cnn)
+	#cnn = MaxPooling2D(pool_size=(1,2), strides=2)(cnn)
 	
 
 	#cnn = Conv2D(512, cnn_kernel, activation=cnn_act, padding='same',
@@ -345,15 +345,15 @@ def train(run_name, start_epoch, stop_epoch):
 	
 	#print(conv_to_rnn_dims)
 	#print(cnn.shape)
-	#conv_to_rnn_dims = (img_width//(2**2), (img_height // (2**2))*64)
-	#rnn = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(cnn)
+	conv_to_rnn_dims = (img_width//(2**2), (img_height // (2**2))*64)
+	rnn = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(cnn)
 
 
 	rnn = Dense(32, activation=cnn_act, name='dense1')(cnn)
 
 	#print(rnn.shape)
-	
-	rnn = Reshape(target_shape=(27,32))(rnn)
+
+	rnn = Reshape(target_shape=(444,32))(rnn)
 	rnn = Bidirectional(LSTM(rnn_size, return_sequences=True, name='lstm1'))(rnn)
 	#rnn = Dropout(0.25)(rnn)
 	rnn = Bidirectional(LSTM(rnn_size, return_sequences=True, name='lstm2'))(rnn)
