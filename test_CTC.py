@@ -32,14 +32,14 @@ list_chars = u'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz '
 list_chars_len = len(list_chars)
 
 max_str_len = 16
-img_width, img_height = 100, 32
+img_width, img_height = 150, 50
 
 def get_label(img):
   label = []
   for c in img:
     label.append(list_chars.find(c))
-  for c in range(max_str_len - len(label)):
-  	label.append(list_chars_len)
+  #for c in range(max_str_len - len(label)):
+  #	label.append(list_chars_len)
   return label
 
 def get_text(label):
@@ -252,7 +252,7 @@ class Visualize_callback(keras.callbacks.Callback):
 		print('\nOut of %d samples: Mean edit distance: %0.3f Mean normalized edit distance: %0.3f' % (num, mean_ed, mean_norm_ed))
 
 	def on_epoch_end(self, epoch, logs={}):
-		self.model.save_weights(os.path.join(self.output_dir, 'weights%0.2d.h5' % (epoch)))
+		self.model.save_weights(os.path.join(self.output_dir, 'weights.h5'))
 		self.show_edit_distance(256)
 		word_batch = next(self.data_gen)[0]
 		res = decode_batch(self.test_func, word_batch['the_input'][0:self.num_display_words])
@@ -317,18 +317,18 @@ def train(run_name, start_epoch, stop_epoch):
 	cnn = Conv2D(64, cnn_kernel, activation=cnn_act, padding='same',
                 kernel_initializer=kernel_init, name='conv1')(Input_data)
 	cnn = MaxPooling2D(pool_size=(2, 2), strides=2, name='max1')(cnn)
-	cnn = Dropout(0.25)(cnn)
+	#cnn = Dropout(0.25)(cnn)
 
 	cnn = Conv2D(64, cnn_kernel, activation=cnn_act, padding='same',
                 kernel_initializer=kernel_init, name='conv2')(cnn)
 	cnn = MaxPooling2D(pool_size=(2,2), strides=2)(cnn)
-	'''
+	
 	cnn = Conv2D(256, cnn_kernel, activation=cnn_act, padding='same',
                 kernel_initializer=kernel_init, name='conv3')(cnn)
 	cnn = Conv2D(256, cnn_kernel, activation=cnn_act, padding='same',
                 kernel_initializer=kernel_init, name='conv4')(cnn)
 	cnn = MaxPooling2D(pool_size=(1,2), strides=2)(cnn)
-	cnn = Dropout(0.25)(cnn)
+	#cnn = Dropout(0.25)(cnn)
 	cnn = Conv2D(512, cnn_kernel, activation=cnn_act, padding='same',
                 kernel_initializer=kernel_init, name='conv5')(cnn)
 	cnn = BatchNormalization(axis=1)(cnn)
@@ -336,29 +336,27 @@ def train(run_name, start_epoch, stop_epoch):
                 kernel_initializer=kernel_init, name='conv6')(cnn)
 	cnn = BatchNormalization(axis=1)(cnn)
 	cnn = MaxPooling2D(pool_size=(1,2), strides=2)(cnn)
-	cnn = Conv2D(512, cnn_kernel, activation=cnn_act, padding='same',
-                kernel_initializer=kernel_init, name='conv7')(cnn)
+	#cnn = Conv2D(512, cnn_kernel, activation=cnn_act, padding='same',
+    #            kernel_initializer=kernel_init, name='conv7')(cnn)
 	#cnn.add(Conv2D(512,(1,2), activation=cnn_act))
-	cnn = Dropout(0.25)(cnn)
-	'''
+	#cnn = Dropout(0.25)(cnn)
+	
 	#print(conv_to_rnn_dims)
-	#print(cnn.shape)
-	conv_to_rnn_dims = (img_width//(2**2), (img_height // (2**2))*64)
-	rnn = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(cnn)
-	#rnn = Dense(32, activation=cnn_act, name='dense1')(cnn)
-	#print(rnn.shape)
-	#rnn = Reshape(target_shape=(200,32))(rnn)
-	rnn = Bidirectional(LSTM(rnn_size, return_sequences=True,
-          kernel_initializer=kernel_init, name='lstm1'))(rnn)
-	rnn = Dropout(0.25)(rnn)
-	rnn = Bidirectional(LSTM(rnn_size, return_sequences=True,
-          kernel_initializer=kernel_init, name='lstm2'))(rnn)
+	print(cnn.shape)
+	#conv_to_rnn_dims = (img_width//(2**2), (img_height // (2**2))*64)
+	#rnn = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(cnn)
+	rnn = Dense(32, activation=cnn_act, name='dense1')(cnn)
+	print(rnn.shape)
+	rnn = Reshape(target_shape=(27,32))(rnn)
+	rnn = Bidirectional(LSTM(rnn_size, return_sequences=True, name='lstm1'))(rnn)
+	#rnn = Dropout(0.25)(rnn)
+	rnn = Bidirectional(LSTM(rnn_size, return_sequences=True, name='lstm2'))(rnn)
 	rnn = Dense(list_chars_len+1, kernel_initializer=kernel_init
           ,name='dense2')(rnn)
 	y_pred = Activation('softmax', name='softmax')(rnn)
 	#Model(inputs=Input_data, outputs=y_pred).summary()
 
-	labels = Input(name='the_labels', shape=[data_gen.max_str_leng], dtype='float32')
+	labels = Input(name='the_labels', shape=[data_gen.max_str_leng-10], dtype='float32')
 	input_length = Input(name='input_length', shape=[1], dtype='int64')
 	label_length = Input(name='label_length', shape=[1], dtype='int64')
 
@@ -370,14 +368,13 @@ def train(run_name, start_epoch, stop_epoch):
 	model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer=sgd, metrics=['accuracy'])
 
 	if start_epoch > 0:
-		weights_file = os.path.join(out_put_dirs, os.path.join(run_name, 'weights%02d.h5' % (start_epoch - 1)))
+		weights_file = os.path.join(out_put_dirs, os.path.join(run_name, 'weights.h5'))
 		model.load_weights(weights_file)
 
 	test_func = K.function([Input_data], [y_pred])
 
 	viz_cb = Visualize_callback(run_name, test_func, data_gen.next_val())
 
-	epochs = 10
 	model.fit_generator(generator = data_gen.next_train(),
 						steps_per_epoch = (len(nb_train)//batch_sizes - 1),
 						epochs=stop_epoch,
@@ -386,6 +383,6 @@ def train(run_name, start_epoch, stop_epoch):
 						callbacks=[viz_cb, data_gen],
 						initial_epoch=start_epoch)
 
-run_name = "build_1"
-train(run_name,0,40)
+run_name = "build_2"
+train(run_name,0,10)
 
