@@ -38,8 +38,8 @@ def get_label(img):
   label = []
   for c in img:
     label.append(list_chars.find(c))
-  #for c in range(max_str_len - len(label)):
-  #	label.append(list_chars_len)
+  for c in range(max_str_len - len(label)):
+  	label.append(list_chars_len)
   return label
 
 def get_text(label):
@@ -336,17 +336,23 @@ def train(run_name, start_epoch, stop_epoch):
                 kernel_initializer=kernel_init, name='conv6')(cnn)
 	cnn = BatchNormalization(axis=1)(cnn)
 	cnn = MaxPooling2D(pool_size=(1,2), strides=2)(cnn)
+	
+
 	#cnn = Conv2D(512, cnn_kernel, activation=cnn_act, padding='same',
     #            kernel_initializer=kernel_init, name='conv7')(cnn)
 	#cnn.add(Conv2D(512,(1,2), activation=cnn_act))
 	#cnn = Dropout(0.25)(cnn)
 	
 	#print(conv_to_rnn_dims)
-	print(cnn.shape)
+	#print(cnn.shape)
 	#conv_to_rnn_dims = (img_width//(2**2), (img_height // (2**2))*64)
 	#rnn = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(cnn)
+
+
 	rnn = Dense(32, activation=cnn_act, name='dense1')(cnn)
-	print(rnn.shape)
+
+	#print(rnn.shape)
+	
 	rnn = Reshape(target_shape=(27,32))(rnn)
 	rnn = Bidirectional(LSTM(rnn_size, return_sequences=True, name='lstm1'))(rnn)
 	#rnn = Dropout(0.25)(rnn)
@@ -356,7 +362,7 @@ def train(run_name, start_epoch, stop_epoch):
 	y_pred = Activation('softmax', name='softmax')(rnn)
 	#Model(inputs=Input_data, outputs=y_pred).summary()
 
-	labels = Input(name='the_labels', shape=[data_gen.max_str_leng-10], dtype='float32')
+	labels = Input(name='the_labels', shape=[data_gen.max_str_leng], dtype='float32')
 	input_length = Input(name='input_length', shape=[1], dtype='int64')
 	label_length = Input(name='label_length', shape=[1], dtype='int64')
 
