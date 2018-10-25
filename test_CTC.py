@@ -14,24 +14,23 @@ from tqdm import tqdm
 from keras import backend as K
 from keras.utils.np_utils import to_categorical
 from keras.models import Model
-from keras.layers import LSTM, Dropout, BatchNormalization
+from keras.layers import LSTM, Dropout, BatchNormalization, GRU
 from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import Bidirectional, TimeDistributed, Lambda
 from keras.layers import Flatten, Reshape, Dense, Input, Activation
+from keras.layers.merge import add, concatenate
 from keras.optimizers import *
 
 home_dir = os.getcwd()
 train_data_dir = home_dir + "/captcha1/train"
 test_data_dir = home_dir + "/captcha1/test"
 val_data_dir = home_dir + "/captcha1/validation"
-
 out_put_dirs = home_dir + "/test_captcha_model"
-epochs = 10
-regex = r'^[a-z A-Z]+$'
+
 list_chars = u'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz '
 list_chars_len = len(list_chars)
-
 max_str_len = 16
+
 img_width, img_height = 150, 50
 
 def get_label(img):
@@ -51,11 +50,6 @@ def get_text(label):
       text.append(list_chars[c])
   return "".join(text)
 
-def is_valid_str(str):
-  search = re.compile(regex, re.UNICODE).search
-  return bool((search(str)))
-
-
 def data(data_dir):
   data = []
   for i in tqdm(os.listdir(data_dir)):
@@ -66,28 +60,6 @@ def data(data_dir):
     data.append([np.array(img),label,len(i.split(".")[0])])
   shuffle(data)
   return data
-
-'''train_image = data(train_data_dir)
-=======
-    data.append([img,label])
-  shuffle(data)
-  return data
-
-train_image = data(train_data_dir)
->>>>>>> 228f807f0087345963fbd4e63c0501d445c9a168
-test_image = data(test_data_dir)
-
-train_img_data = np.array([i[0] for i in train_image])
-train_img_label = np.array([i[1] for i in train_image])
-#train_img_label.shape = (-1,372)
-
-test_img_data = np.array([i[0] for i in test_image])
-test_img_label = np.array([i[1] for i in test_image])
-#test_img_label.shape = (-1,372)
-<<<<<<< HEAD
-'''
-
-		#CTC lambda function
 
 
 #CTC lambda function
@@ -163,14 +135,7 @@ class DataGenerator(keras.callbacks.Callback):
 		#self.val_Y = np.array(i[1] for i in val_data)
 		#self.val_Y_len = np.array(i[2] for i in val_data)
 
-		'''
-		if K.image_data_format() == 'channels_first':
-			self.train_X.shape = (self.train_size, 3, self.im_w, self.im_h)
-			self.val_X.shape = (self.val_size, 3, self.im_w, self.im_h)
-		else:
-			self.train_X.shape = (self.train_size, self.im_w, self.im_h, 3)
-			self.val_X.shape = (self.val_size, self.im_w, self.im_h, 3)
-			'''
+		
 
 	def get_batch(self, index, size, train):
 		X_data = []
@@ -205,18 +170,18 @@ class DataGenerator(keras.callbacks.Callback):
 
 	def next_train(self):
 		while 1:
-			self.cur_train_index = 0
-			self.cur_val_index = 0
 			ret = self.get_batch(0, self.batch_size, train = True)
 			self.cur_train_index += self.batch_size
+			if self.cur_train_index >= self.train_size:
+				self.cur_train_index = self.train_size % 32
 			yield ret
 
 	def next_val(self):
 		while 1:
-			self.cur_train_index = 0
-			self.cur_val_index = 0
 			ret = self.get_batch(0, self.batch_size, train=False)
 			self.cur_val_index += self.batch_size
+			if self.cur_val_index >= self.val_size:
+				self.cur_val_index = self.val_size % 32
 			yield ret
 
 	def on_train_begin(self, logs={}):
@@ -292,9 +257,9 @@ def train(run_name, start_epoch, stop_epoch):
 
 	rnn_size = 512
 	kernel_init = 'he_normal'
-	batch_sizes = 64
-	nb_train = os.listdir(train_data_dir)
-	nb_val = os.listdir(val_data_dir)
+	batch_sizes = 32
+	nb_train = len(os.listdir(train_data_dir))
+	nb_val = len(os.listdir(val_data_dir))
 
 	if K.image_data_format() == 'channels_first':
   		input_shape = (3, img_height, img_width)
@@ -317,21 +282,20 @@ def train(run_name, start_epoch, stop_epoch):
 	cnn = Conv2D(64, cnn_kernel, activation=cnn_act, padding='same',
                 kernel_initializer=kernel_init, name='conv1')(Input_data)
 	cnn = MaxPooling2D(pool_size=(2, 2), strides=2, name='max1')(cnn)
-	#cnn = Dropout(0.25)(cnn)
 
 	cnn = Conv2D(64, cnn_kernel, activation=cnn_act, padding='same',
                 kernel_initializer=kernel_init, name='conv2')(cnn)
 	cnn = MaxPooling2D(pool_size=(2,2), strides=2)(cnn)
 	
-	#cnn = Conv2D(256, cnn_kernel, activation=cnn_act, padding='same',
+	#cnn = Conv2D(64, cnn_kernel, activation=cnn_act, padding='same',
     #            kernel_initializer=kernel_init, name='conv3')(cnn)
-	#cnn = Conv2D(256, cnn_kernel, activation=cnn_act, padding='same',
+	#cnn = Conv2D(64, cnn_kernel, activation=cnn_act, padding='same',
     #            kernel_initializer=kernel_init, name='conv4')(cnn)
-	#cnn = MaxPooling2D(pool_size=(1,2), strides=2)(cnn)
+	#cnn = MaxPooling2D(pool_size=(2,2), strides=2)(cnn)
 	#cnn = Dropout(0.25)(cnn)
 	#cnn = Conv2D(512, cnn_kernel, activation=cnn_act, padding='same',
     #            kernel_initializer=kernel_init, name='conv5')(cnn)
-	cnn = BatchNormalization(axis=1)(cnn)
+	#cnn = BatchNormalization(axis=1)(cnn)
 	#cnn = Conv2D(512, cnn_kernel, activation=cnn_act, padding='same',
     #            kernel_initializer=kernel_init, name='conv6')(cnn)
 	#cnn = BatchNormalization(axis=1)(cnn)
@@ -345,20 +309,31 @@ def train(run_name, start_epoch, stop_epoch):
 	
 	#print(conv_to_rnn_dims)
 	#print(cnn.shape)
+
+
 	conv_to_rnn_dims = (img_width//(2**2), (img_height // (2**2))*64)
 	rnn = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(cnn)
-
-
-	rnn = Dense(32, activation=cnn_act, name='dense1')(cnn)
-
+	
 	#print(rnn.shape)
+	rnn = Dense(32, activation=cnn_act, name='dense1')(rnn)
+	'''
+	print(rnn.shape)
 
-	rnn = Reshape(target_shape=(444,32))(rnn)
-	rnn = Bidirectional(LSTM(rnn_size, return_sequences=True, name='lstm1'))(rnn)
-	#rnn = Dropout(0.25)(rnn)
-	rnn = Bidirectional(LSTM(rnn_size, return_sequences=True, name='lstm2'))(rnn)
-	rnn = Dense(list_chars_len+1, kernel_initializer=kernel_init
-          ,name='dense2')(rnn)
+	rnn = Reshape(target_shape=conv_to_rnn_dims, name='reshape1')(rnn)'''
+
+	'''
+	rnn = Bidirectional(GRU(rnn_size, return_sequences=True, name='lstm1'))(rnn)
+	rnn = Bidirectional(GRU(rnn_size, return_sequences=True, name='lstm2'))(rnn)
+	'''
+	gru_1a = LSTM(rnn_size, return_sequences=True, kernel_initializer=kernel_init, name='gru_1a')(rnn)
+	gru_1b = LSTM(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer=kernel_init, name='gru_1b')(rnn)
+	gru1 = add([gru_1a, gru_1b])
+	gru_2a = LSTM(rnn_size, return_sequences=True, kernel_initializer=kernel_init, name='gru_2a')(gru1)
+	gru_2b = LSTM(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer=kernel_init, name='gru_2b')(gru1)
+
+
+	rnn = Dense(data_gen.get_output_size(), kernel_initializer=kernel_init
+          ,name='dense2')(concatenate([gru_2a, gru_2b]))
 	y_pred = Activation('softmax', name='softmax')(rnn)
 	#Model(inputs=Input_data, outputs=y_pred).summary()
 
@@ -382,13 +357,13 @@ def train(run_name, start_epoch, stop_epoch):
 	viz_cb = Visualize_callback(run_name, test_func, data_gen.next_val())
 
 	model.fit_generator(generator = data_gen.next_train(),
-						steps_per_epoch = (len(nb_train)//batch_sizes - 1),
+						steps_per_epoch = (nb_train//batch_sizes),
 						epochs=stop_epoch,
 						validation_data = data_gen.next_val(),
-						validation_steps = (len(nb_val)//batch_sizes - 1),
+						validation_steps = (nb_val//batch_sizes),
 						callbacks=[viz_cb, data_gen],
 						initial_epoch=start_epoch)
 
 run_name = "build_2"
-train(run_name,0,10)
+train(run_name,0,1000)
 
