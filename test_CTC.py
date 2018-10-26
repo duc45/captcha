@@ -38,13 +38,13 @@ def get_label(img):
   for c in img:
     label.append(list_chars.find(c))
   for c in range(max_str_len - len(label)):
-  	label.append(list_chars_len)
+  	label.append(list_chars_len+1)
   return label
 
 def get_text(label):
   text = []
   for c in label:
-    if c == list_chars_len:
+    if c == list_chars_len+1:
       text.append("")
     else:
       text.append(list_chars[c])
@@ -64,7 +64,7 @@ def data(data_dir):
 
 #CTC lambda function
 def ctc_lambda_func(args):
-  y_pred, labels, input_length, label_length = args
+  labels, y_pred, input_length, label_length = args
   y_pred = y_pred[:, 2:, :]
   return K.ctc_batch_cost(labels, y_pred, input_length, label_length)
 
@@ -83,7 +83,7 @@ class DataGenerator(keras.callbacks.Callback):
 	def __init__(self, train_dir,
 		im_h, im_w, ds_factor,train_size,
 		val_dir, batch_size, val_size,
-		n_channels=3, shuffle=True, max_str_leng=16):
+		n_channels=3, max_str_leng=16):
 		
 		self.train_dir = train_dir
 		self.val_dir = val_dir
@@ -91,7 +91,6 @@ class DataGenerator(keras.callbacks.Callback):
 		self.train_size = train_size
 		self.val_size =val_size
 		self.n_channels = n_channels
-		self.shuffle = shuffle
 		self.max_str_leng = max_str_leng
 		self.ds_factor = ds_factor
 		self.im_w = im_w
@@ -341,7 +340,7 @@ def train(run_name, start_epoch, stop_epoch):
 	input_length = Input(name='input_length', shape=[1], dtype='int64')
 	label_length = Input(name='label_length', shape=[1], dtype='int64')
 
-	loss_out = Lambda(ctc_lambda_func, output_shape=(1,), name='ctc')([y_pred, labels, input_length, label_length])
+	loss_out = Lambda(ctc_lambda_func, output_shape=(1,), name='ctc')([labels, y_pred, input_length, label_length])
 
 	sgd = SGD(lr=0.02, decay=1e-6, momentum=0.9, nesterov=True, clipnorm=5)
 
