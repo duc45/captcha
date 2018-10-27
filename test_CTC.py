@@ -38,14 +38,16 @@ def get_label(img):
   for c in img:
     label.append(list_chars.find(c))
   for c in range(max_str_len - len(label)):
-  	label.append(list_chars_len+1)
+  	label.append(list_chars_len)
   return label
 
 def get_text(label):
   text = []
   for c in label:
-    if c == list_chars_len+1:
+    if c >= list_chars_len:
       text.append("")
+    elif c < 0:
+    	text.append("")
     else:
       text.append(list_chars[c])
   return "".join(text)
@@ -56,8 +58,15 @@ def data(data_dir):
     path = os.path.join(data_dir, i)
     temp = cv2.imread(path, cv2.IMREAD_COLOR)
     img = cv2.resize(temp, (img_width,img_height))
+    img_gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     label = get_label(i.split(".")[0])
-    data.append([np.array(img),label,len(i.split(".")[0])])
+    dot = np.array(img_gray)/255
+    if K.image_data_format() == 'channels_first':
+    	dot = np.expand_dims(dot, axis=3)
+    else:
+    	dot = np.expand_dims(dot, axis=0)
+    dot = dot.T
+    data.append([dot,label,len(i.split(".")[0])])
   shuffle(data)
   return data
 
@@ -80,21 +89,18 @@ def decode_batch(test_func, word_batch):
 
 #generator class 
 class DataGenerator(keras.callbacks.Callback):
-	def __init__(self, train_dir,
-		im_h, im_w, ds_factor,train_size,
-		val_dir, batch_size, val_size,
-		n_channels=3, max_str_leng=16):
+	def __init__(self, train_dir, ds_factor,train_size,
+		im_w, img_h, val_dir, batch_size, val_size, max_str_leng=16):
 		
 		self.train_dir = train_dir
 		self.val_dir = val_dir
 		self.batch_size= batch_size
 		self.train_size = train_size
+		self.im_w = im_w
+		self.img_h = img_h
 		self.val_size =val_size
-		self.n_channels = n_channels
 		self.max_str_leng = max_str_leng
 		self.ds_factor = ds_factor
-		self.im_w = im_w
-		self.im_h = im_h
 		self.cur_train_index = 0
 		self.cur_val_index = 0
 
@@ -107,6 +113,7 @@ class DataGenerator(keras.callbacks.Callback):
 		train_Y = []
 		train_Y_len = []
 		for i in train_data:
+			# train_X.append(np.expand_dims(i[0], axis=3).T)
 			train_X.append(i[0])
 			train_Y.append(i[1])
 			train_Y_len.append(i[2])
@@ -123,6 +130,7 @@ class DataGenerator(keras.callbacks.Callback):
 		val_Y = []
 		val_Y_len = []
 		for i in val_data:
+			# val_X.append(np.expand_dims(i[0], axis=3).T)
 			val_X.append(i[0])
 			val_Y.append(i[1])
 			val_Y_len.append(i[2])
@@ -139,8 +147,8 @@ class DataGenerator(keras.callbacks.Callback):
 	def get_batch(self, index, size, train):
 		X_data = []
 		labels = []
-		input_length = np.ones([size, 1])
-		label_length = np.ones([size, 1])
+		input_length = np.zeros([size, 1])
+		label_length = np.zeros([size, 1])
 		source_str = []
 		for i in range(size):
 			if train:
@@ -169,7 +177,7 @@ class DataGenerator(keras.callbacks.Callback):
 
 	def next_train(self):
 		while 1:
-			ret = self.get_batch(0, self.batch_size, train = True)
+			ret = self.get_batch(0, self.batch_size, train=True)
 			self.cur_train_index += self.batch_size
 			if self.cur_train_index >= self.train_size:
 				self.cur_train_index = self.train_size % 32
@@ -230,7 +238,7 @@ class Visualize_callback(keras.callbacks.Callback):
 				the_input = word_batch['the_input'][i, 0, :, :]
 			else:
 				the_input = word_batch['the_input'][i, :, :, 0]
-			plt.imshow(the_input, cmap='Greys_r')
+			plt.imshow(the_input.T, cmap='Greys_r')
 			plt.xlabel('Truth = \'%s\'\nDecoded = \'%s\'' % (word_batch['source_str'][i], res[i]))
 		fig = pylab.gcf()
 		fig.set_size_inches(10, 13)
@@ -261,18 +269,17 @@ def train(run_name, start_epoch, stop_epoch):
 	nb_val = len(os.listdir(val_data_dir))
 
 	if K.image_data_format() == 'channels_first':
-  		input_shape = (3, img_height, img_width)
+  		input_shape = (1, img_width, img_height)
 	else:
-  		input_shape = (img_height, img_width, 3)
+  		input_shape = (img_width, img_height, 1)
 
 	data_gen = DataGenerator(train_dir = train_data_dir,
  						  val_dir = val_data_dir,
  						  train_size = nb_train,
  						  val_size = nb_val,
- 						  n_channels = 3,
- 						  batch_size = batch_sizes,
  						  im_w = img_width,
- 						  im_h = img_height,
+ 						  img_h = img_height,
+ 						  batch_size = batch_sizes,
  						  ds_factor = 2**2
  						  )
 
