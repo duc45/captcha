@@ -12,7 +12,6 @@ import pylab
 from random import shuffle
 from tqdm import tqdm
 from keras import backend as K
-from keras.utils.np_utils import to_categorical
 from keras.models import Model
 from keras.layers import LSTM, Dropout, BatchNormalization, GRU
 from keras.layers import Conv2D, MaxPooling2D
@@ -27,7 +26,7 @@ test_data_dir = home_dir + "/captcha1/test"
 val_data_dir = home_dir + "/captcha1/validation"
 out_put_dirs = home_dir + "/test_captcha_model"
 
-list_chars = u'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz '
+list_chars = u'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
 list_chars_len = len(list_chars)
 max_str_len = 16
 
@@ -59,13 +58,13 @@ def data(data_dir):
     temp = cv2.imread(path, cv2.IMREAD_COLOR)
     img = cv2.resize(temp, (img_width,img_height))
     img_gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    label = get_label(i.split(".")[0])
-    dot = np.array(img_gray)/255
-    if K.image_data_format() == 'channels_first':
-    	dot = np.expand_dims(dot, axis=3)
-    else:
-    	dot = np.expand_dims(dot, axis=0)
+    dot = np.array(img_gray)/255.0
     dot = dot.T
+    if K.image_data_format() == 'channels_first':
+    	dot = np.expand_dims(dot, axis=0)
+    else:
+    	dot = np.expand_dims(dot, axis=3)
+    label = get_label(i.split(".")[0])
     data.append([dot,label,len(i.split(".")[0])])
   shuffle(data)
   return data
@@ -177,18 +176,18 @@ class DataGenerator(keras.callbacks.Callback):
 
 	def next_train(self):
 		while 1:
-			ret = self.get_batch(0, self.batch_size, train=True)
+			ret = self.get_batch(self.cur_train_index, self.batch_size, train=True)
 			self.cur_train_index += self.batch_size
 			if self.cur_train_index >= self.train_size:
-				self.cur_train_index = self.train_size % 32
+				self.cur_train_index = self.train_size % 64
 			yield ret
 
 	def next_val(self):
 		while 1:
-			ret = self.get_batch(0, self.batch_size, train=False)
+			ret = self.get_batch(self.cur_val_index, self.batch_size, train=False)
 			self.cur_val_index += self.batch_size
 			if self.cur_val_index >= self.val_size:
-				self.cur_val_index = self.val_size % 32
+				self.cur_val_index = self.val_size % 64
 			yield ret
 
 	def on_train_begin(self, logs={}):
@@ -275,8 +274,8 @@ def train(run_name, start_epoch, stop_epoch):
 
 	data_gen = DataGenerator(train_dir = train_data_dir,
  						  val_dir = val_data_dir,
- 						  train_size = nb_train,
- 						  val_size = nb_val,
+ 						  train_size = nb_train//batch_sizes,
+ 						  val_size = nb_val//batch_sizes,
  						  im_w = img_width,
  						  img_h = img_height,
  						  batch_size = batch_sizes,
@@ -293,10 +292,10 @@ def train(run_name, start_epoch, stop_epoch):
                 kernel_initializer=kernel_init, name='conv2')(cnn)
 	cnn = MaxPooling2D(pool_size=(2,2), strides=2)(cnn)
 	
-	#cnn = Conv2D(64, cnn_kernel, activation=cnn_act, padding='same',
-    #            kernel_initializer=kernel_init, name='conv3')(cnn)
-	#cnn = Conv2D(64, cnn_kernel, activation=cnn_act, padding='same',
-    #            kernel_initializer=kernel_init, name='conv4')(cnn)
+	# cnn = Conv2D(64, cnn_kernel, activation=cnn_act, padding='same',
+ #               kernel_initializer=kernel_init, name='conv3')(cnn)
+	# cnn = Conv2D(64, cnn_kernel, activation=cnn_act, padding='same',
+ #               kernel_initializer=kernel_init, name='conv4')(cnn)
 	#cnn = MaxPooling2D(pool_size=(2,2), strides=2)(cnn)
 	#cnn = Dropout(0.25)(cnn)
 	#cnn = Conv2D(512, cnn_kernel, activation=cnn_act, padding='same',
