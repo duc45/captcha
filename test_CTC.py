@@ -182,18 +182,22 @@ class DataGenerator(keras.callbacks.Callback):
 
     def next_train(self):
         while 1:
-            ret = self.get_batch(0, self.batch_size, train=True)
+            ret = self.get_batch(self.cur_train_index,
+                                 min(self.batch_size, self.train_size - self.cur_train_index),
+                                 train=True)
             self.cur_train_index += self.batch_size
             if self.cur_train_index >= self.train_size:
-                self.cur_train_index = self.train_size % 32
+                self.cur_train_index = 0
             yield ret
 
     def next_val(self):
         while 1:
-            ret = self.get_batch(0, self.batch_size, train=False)
+            ret = self.get_batch(self.cur_val_index,
+                                 min(self.batch_size, self.val_size - self.cur_val_index),
+                                 train=False)
             self.cur_val_index += self.batch_size
             if self.cur_val_index >= self.val_size:
-                self.cur_val_index = self.val_size % 32
+                self.cur_val_index = 0
             yield ret
 
     def on_train_begin(self, logs={}):
@@ -226,7 +230,7 @@ class Visualize_callback(keras.callbacks.Callback):
         mean_norm_ed = mean_norm_ed / num
         mean_ed = mean_ed / num
         print('\nOut of %d samples: Mean edit distance: %0.3f Mean normalized edit distance: %0.3f' % (
-        num, mean_ed, mean_norm_ed))
+            num, mean_ed, mean_norm_ed))
 
     def on_epoch_end(self, epoch, logs={}):
         self.model.save_weights(os.path.join(self.output_dir, 'weights.h5'))
@@ -249,6 +253,7 @@ class Visualize_callback(keras.callbacks.Callback):
         fig.set_size_inches(10, 13)
         plt.savefig(os.path.join(self.output_dir, 'e%02d.png' % (epoch)))
         plt.close()
+
 
 # setup parameter
 
@@ -315,11 +320,11 @@ def train(run_name, start_epoch, stop_epoch):
     rnn = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(cnn)
 
     # print(rnn.shape)
-    rnn = Dense(32, activation=cnn_act, name='dense1')(rnn)
+    # rnn = Dense(32, activation=cnn_act, name='dense1')(rnn)
     gru_1a = LSTM(rnn_size, return_sequences=True, kernel_initializer=kernel_init, name='gru_1a')(rnn)
     gru_1b = LSTM(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer=kernel_init, name='gru_1b')(
         rnn)
-    gru1 = add([gru_1a, gru_1b])
+    gru1 = concatenate([gru_1a, gru_1b])
     gru_2a = LSTM(rnn_size, return_sequences=True, kernel_initializer=kernel_init, name='gru_2a')(gru1)
     gru_2b = LSTM(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer=kernel_init, name='gru_2b')(
         gru1)
@@ -359,3 +364,18 @@ def train(run_name, start_epoch, stop_epoch):
 
 run_name = "build_2"
 train(run_name, 0, 100)
+# nb_train = len(os.listdir(train_data_dir))
+# nb_val = len(os.listdir(val_data_dir))
+# data_gen = DataGenerator(train_dir=train_data_dir,
+#                          val_dir=val_data_dir,
+#                          train_size=nb_train,
+#                          val_size=nb_val,
+#                          im_w=img_width,
+#                          img_h=img_height,
+#                          batch_size=32,
+#                          ds_factor=2 ** 2,
+#                          max_str_leng=max_str_len
+#                          )
+# data_gen.get_data()
+# for batch in data_gen.next_train():
+#     print batch
